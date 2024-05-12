@@ -175,6 +175,43 @@ defmodule Fammit.Accounts do
   end
 
   @doc """
+  Returns an `%Ecto.Changeset{}` for changing the user info.
+
+  ## Examples
+
+      iex> change_user_info(user)
+      %Ecto.Changeset{data: %User{}}
+
+  """
+  def change_user_info(user, attrs \\ %{}) do
+    User.username_changeset(user, attrs, validate_username: false)
+  end
+
+  @doc """
+  Updates the user info.  Currently only username.
+
+  ## Examples
+
+      iex> update_user_info(user, %{username: ...})
+      {:ok, %User{}}
+
+      iex> update_user_info(user, %{username: ...})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_user_info(user, attrs) do
+    changeset =
+      user
+      |> User.username_changeset(attrs)
+
+    Repo.update(changeset)
+    |> case do
+      {:ok, user} -> {:ok, user}
+      {:error, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  @doc """
   Returns an `%Ecto.Changeset{}` for changing the user password.
 
   ## Examples
