@@ -90,7 +90,7 @@ defmodule Fammit.Accounts do
 
   """
   def change_user_registration(%User{} = user, attrs \\ %{}) do
-    User.registration_changeset(user, attrs, hash_password: false, validate_email: false)
+    User.registration_changeset(user, attrs, hash_password: false, validate_email: false, validate_username: false)
   end
 
   ## Settings
@@ -205,10 +205,6 @@ defmodule Fammit.Accounts do
       |> User.username_changeset(attrs)
 
     Repo.update(changeset)
-    |> case do
-      {:ok, user} -> {:ok, user}
-      {:error, changeset, _} -> {:error, changeset}
-    end
   end
 
   @doc """

@@ -54,7 +54,7 @@ defmodule Fammit.Accounts.User do
   defp validate_username(changeset, _opts) do
     changeset
     |> validate_required([:username])
-    |> validate_format(:username, ~r/[\w]+/, message: "must have only letters, numbers, and _")
+    |> validate_format(:username, ~r/^[\w]+$/, message: "must have only letters, numbers, and _")
     |> validate_length(:username, max: 24)
   end
 
@@ -105,6 +105,7 @@ defmodule Fammit.Accounts.User do
     |> validate_email(opts)
     |> case do
       %{changes: %{email: _}} = changeset -> changeset
+      %{errors: [email: _]} = changeset -> changeset
       %{} = changeset -> add_error(changeset, :email, "did not change")
     end
   end
@@ -120,6 +121,7 @@ defmodule Fammit.Accounts.User do
     |> validate_username(opts)
     |> case do
       %{changes: %{username: _}} = changeset -> changeset
+      %{errors: [username: _]} = changeset -> changeset
       %{} = changeset -> add_error(changeset, :username, "did not change")
     end
   end

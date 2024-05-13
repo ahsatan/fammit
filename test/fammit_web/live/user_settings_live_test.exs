@@ -13,6 +13,7 @@ defmodule FammitWeb.UserSettingsLiveTest do
         |> live(~p"/users/settings")
 
       assert html =~ "Change Email"
+      assert html =~ "Change User Info"
       assert html =~ "Change Password"
     end
 
@@ -79,6 +80,58 @@ defmodule FammitWeb.UserSettingsLiveTest do
       assert result =~ "Change Email"
       assert result =~ "did not change"
       assert result =~ "is not valid"
+    end
+  end
+
+  describe "update user info form" do
+    setup %{conn: conn} do
+      user = user_fixture()
+      %{conn: log_in_user(conn, user), user: user}
+    end
+
+    test "updates the user username", %{conn: conn, user: user} do
+      new_username = "#{valid_username()}2"
+
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      result =
+        lv
+        |> form("#user_info_form", %{
+          "user" => %{"username" => new_username}
+        })
+        |> render_submit()
+
+      assert result =~ "User info updated successfully!"
+      assert new_username == Accounts.get_user_by_email(user.email).username
+    end
+
+    test "renders errors with invalid data (phx-change)", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      result =
+        lv
+        |> element("#user_info_form")
+        |> render_change(%{
+          "action" => "update_user_info",
+          "user" => %{"username" => "with spaces"}
+        })
+
+      assert result =~ "Change User Info"
+      assert result =~ "must have only letters, numbers, and _"
+    end
+
+    test "renders errors with invalid data (phx-submit)", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      result =
+        lv
+        |> form("#user_info_form", %{
+          "user" => %{"username" => "abcdefghijklmnopqrstuvwxy"}
+        })
+        |> render_submit()
+
+      assert result =~ "Change User Info"
+      assert result =~ "should be at most 24 character(s)"
     end
   end
 

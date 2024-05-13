@@ -168,12 +168,13 @@ defmodule FammitWeb.UserSettingsLive do
 
     case Accounts.update_user_info(user, user_params) do
       {:ok, user} ->
-        user
-        |> Accounts.change_user_info(user_params)
-        |> to_form()
+        user_info_form =
+          user
+          |> Accounts.change_user_info(user_params)
+          |> to_form()
 
         info = "User info updated successfully!"
-        {:noreply, put_flash(socket, :info, info)}
+        {:noreply, socket |> put_flash(:info, info) |> assign(user_info_form: user_info_form)}
 
       {:error, changeset} ->
         {:noreply, assign(socket, user_info_form: to_form(changeset))}
