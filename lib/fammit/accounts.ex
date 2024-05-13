@@ -90,7 +90,7 @@ defmodule Fammit.Accounts do
 
   """
   def change_user_registration(%User{} = user, attrs \\ %{}) do
-    User.registration_changeset(user, attrs, hash_password: false, validate_email: false)
+    User.registration_changeset(user, attrs, hash_password: false, validate_email: false, validate_username: false)
   end
 
   ## Settings
@@ -172,6 +172,39 @@ defmodule Fammit.Accounts do
 
     Repo.insert!(user_token)
     UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(encoded_token))
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for changing the user info.
+
+  ## Examples
+
+      iex> change_user_info(user)
+      %Ecto.Changeset{data: %User{}}
+
+  """
+  def change_user_info(user, attrs \\ %{}) do
+    User.username_changeset(user, attrs, validate_username: false)
+  end
+
+  @doc """
+  Updates the user info.  Currently only username.
+
+  ## Examples
+
+      iex> update_user_info(user, %{username: ...})
+      {:ok, %User{}}
+
+      iex> update_user_info(user, %{username: ...})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_user_info(user, attrs) do
+    changeset =
+      user
+      |> User.username_changeset(attrs)
+
+    Repo.update(changeset)
   end
 
   @doc """

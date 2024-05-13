@@ -7,7 +7,7 @@ defmodule FammitWeb.UserSettingsLive do
     ~H"""
     <.header class="text-center">
       Account Settings
-      <:subtitle>Manage your account email address and password settings</:subtitle>
+      <:subtitle>Manage your email address, username, and password settings</:subtitle>
     </.header>
 
     <div class="space-y-12 divide-y">
@@ -30,6 +30,19 @@ defmodule FammitWeb.UserSettingsLive do
           />
           <:actions>
             <.button phx-disable-with="Changing...">Change Email</.button>
+          </:actions>
+        </.simple_form>
+      </div>
+      <div>
+        <.simple_form
+          for={@user_info_form}
+          id="user_info_form"
+          phx-submit="update_user_info"
+          phx-change="validate_user_info"
+        >
+          <.input field={@user_info_form[:username]} label="Username" required />
+          <:actions>
+            <.button phx-disable-with="Changing...">Change User Info</.button>
           </:actions>
         </.simple_form>
       </div>
@@ -89,6 +102,7 @@ defmodule FammitWeb.UserSettingsLive do
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
     email_changeset = Accounts.change_user_email(user)
+    user_info_changeset = Accounts.change_user_info(user)
     password_changeset = Accounts.change_user_password(user)
 
     socket =
@@ -97,6 +111,7 @@ defmodule FammitWeb.UserSettingsLive do
       |> assign(:email_form_current_password, nil)
       |> assign(:current_email, user.email)
       |> assign(:email_form, to_form(email_changeset))
+      |> assign(:user_info_form, to_form(user_info_changeset))
       |> assign(:password_form, to_form(password_changeset))
       |> assign(:trigger_submit, false)
 
@@ -132,6 +147,37 @@ defmodule FammitWeb.UserSettingsLive do
 
       {:error, changeset} ->
         {:noreply, assign(socket, :email_form, to_form(Map.put(changeset, :action, :insert)))}
+    end
+  end
+
+  def handle_event("validate_user_info", params, socket) do
+    %{"user" => user_params} = params
+
+    user_info_form =
+      socket.assigns.current_user
+      |> Accounts.change_user_info(user_params)
+      |> Map.put(:action, :validate)
+      |> to_form()
+
+    {:noreply, assign(socket, user_info_form: user_info_form)}
+  end
+
+  def handle_event("update_user_info", params, socket) do
+    %{"user" => user_params} = params
+    user = socket.assigns.current_user
+
+    case Accounts.update_user_info(user, user_params) do
+      {:ok, user} ->
+        user_info_form =
+          user
+          |> Accounts.change_user_info(user_params)
+          |> to_form()
+
+        info = "User info updated successfully!"
+        {:noreply, socket |> put_flash(:info, info) |> assign(user_info_form: user_info_form)}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, user_info_form: to_form(changeset))}
     end
   end
 

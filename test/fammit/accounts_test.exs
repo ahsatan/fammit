@@ -49,28 +49,31 @@ defmodule Fammit.AccountsTest do
   end
 
   describe "register_user/1" do
-    test "requires email and password to be set" do
+    test "requires email, username, and password to be set" do
       {:error, changeset} = Accounts.register_user(%{})
 
       assert %{
                password: ["can't be blank"],
+               username: ["can't be blank"],
                email: ["can't be blank"]
              } = errors_on(changeset)
     end
 
-    test "validates email and password when given" do
-      {:error, changeset} = Accounts.register_user(%{email: "not valid", password: "not valid"})
+    test "validates email, username, and password when given" do
+      {:error, changeset} = Accounts.register_user(%{email: "not valid", username: "not valid", password: "not valid"})
 
       assert %{
                email: ["must have the @ sign and no spaces"],
+               username: ["must have only letters, numbers, and _"],
                password: ["should be at least 12 character(s)"]
              } = errors_on(changeset)
     end
 
-    test "validates maximum values for email and password for security" do
+    test "validates maximum values for email, username, and password for security" do
       too_long = String.duplicate("db", 100)
-      {:error, changeset} = Accounts.register_user(%{email: too_long, password: too_long})
+      {:error, changeset} = Accounts.register_user(%{email: too_long, username: too_long, password: too_long})
       assert "should be at most 160 character(s)" in errors_on(changeset).email
+      assert "should be at most 24 character(s)" in errors_on(changeset).username
       assert "should be at most 72 character(s)" in errors_on(changeset).password
     end
 
@@ -97,21 +100,23 @@ defmodule Fammit.AccountsTest do
   describe "change_user_registration/2" do
     test "returns a changeset" do
       assert %Ecto.Changeset{} = changeset = Accounts.change_user_registration(%User{})
-      assert changeset.required == [:password, :email]
+      assert changeset.required == [:password, :username, :email]
     end
 
     test "allows fields to be set" do
       email = unique_user_email()
+      username = valid_username()
       password = valid_user_password()
 
       changeset =
         Accounts.change_user_registration(
           %User{},
-          valid_user_attributes(email: email, password: password)
+          valid_user_attributes(email: email, username: username, password: password)
         )
 
       assert changeset.valid?
       assert get_change(changeset, :email) == email
+      assert get_change(changeset, :username) == username
       assert get_change(changeset, :password) == password
       assert is_nil(get_change(changeset, :hashed_password))
     end
@@ -174,25 +179,6 @@ defmodule Fammit.AccountsTest do
     end
   end
 
-  describe "deliver_user_update_email_instructions/3" do
-    setup do
-      %{user: user_fixture()}
-    end
-
-    test "sends token through notification", %{user: user} do
-      token =
-        extract_user_token(fn url ->
-          Accounts.deliver_user_update_email_instructions(user, "current@example.com", url)
-        end)
-
-      {:ok, token} = Base.url_decode64(token, padding: false)
-      assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, token))
-      assert user_token.user_id == user.id
-      assert user_token.sent_to == user.email
-      assert user_token.context == "change:current@example.com"
-    end
-  end
-
   describe "update_user_email/2" do
     setup do
       user = user_fixture()
@@ -233,6 +219,82 @@ defmodule Fammit.AccountsTest do
       assert Accounts.update_user_email(user, token) == :error
       assert Repo.get!(User, user.id).email == user.email
       assert Repo.get_by(UserToken, user_id: user.id)
+    end
+  end
+
+  describe "deliver_user_update_email_instructions/3" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "sends token through notification", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_update_email_instructions(user, "current@example.com", url)
+        end)
+
+      {:ok, token} = Base.url_decode64(token, padding: false)
+      assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, token))
+      assert user_token.user_id == user.id
+      assert user_token.sent_to == user.email
+      assert user_token.context == "change:current@example.com"
+    end
+  end
+
+  describe "change_user_info/2" do
+    test "returns a user changeset" do
+      assert %Ecto.Changeset{} = changeset = Accounts.change_user_info(%User{})
+      assert changeset.required == [:username]
+    end
+
+    test "allows fields to be set" do
+      changeset =
+        Accounts.change_user_info(%User{}, %{
+          "username" => "new_username"
+        })
+
+        assert changeset.valid?
+        assert get_change(changeset, :username) == "new_username"
+    end
+  end
+
+  describe "update_user_info/2" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "requires username to change", %{user: user} do
+      {:error, changeset} = Accounts.update_user_info(user, %{})
+      assert ["did not change"] = errors_on(changeset).username
+    end
+
+    test "validates username", %{user: user} do
+      {:error, changeset} =
+        Accounts.update_user_info(user, %{
+          username: "not valid"
+        })
+
+      assert ["must have only letters, numbers, and _"] = errors_on(changeset).username
+    end
+
+    test "validates maximum values for username for security", %{user: user} do
+      too_long = String.duplicate("db", 100)
+
+      {:error, changeset} =
+        Accounts.update_user_info(user, %{username: too_long})
+
+      assert "should be at most 24 character(s)" in errors_on(changeset).username
+    end
+
+    test "updates the username", %{user: user} do
+      new_username = "#{valid_username()}2"
+
+      {:ok, user} =
+        Accounts.update_user_info(user, %{
+          username: new_username
+        })
+
+      assert new_username == user.username
     end
   end
 
